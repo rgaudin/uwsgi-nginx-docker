@@ -1,10 +1,10 @@
-FROM python:3.7-stretch
+FROM python:3.8-buster
 
-LABEL maintainer="Sebastian Ramirez <tiangolo@gmail.com>"
+LABEL forkof="Sebastian Ramirez <tiangolo@gmail.com>"
 
 # Standard set up Nginx
-ENV NGINX_VERSION 1.15.8-1~stretch
-ENV NJS_VERSION   1.15.8.0.2.7-1~stretch
+ENV NGINX_VERSION 1.17.7-1~buster
+ENV NJS_VERSION   1.17.7.0.3.7-1~buster
 
 RUN set -x \
 	&& apt-get update \
@@ -34,13 +34,13 @@ RUN set -x \
 	&& case "$dpkgArch" in \
 		amd64|i386) \
 # arches officialy built by upstream
-			echo "deb https://nginx.org/packages/mainline/debian/ stretch nginx" >> /etc/apt/sources.list.d/nginx.list \
+			echo "deb https://nginx.org/packages/mainline/debian/ buster nginx" >> /etc/apt/sources.list.d/nginx.list \
 			&& apt-get update \
 			;; \
 		*) \
 # we're on an architecture upstream doesn't officially build for
 # let's build binaries from the published source packages
-			echo "deb-src https://nginx.org/packages/mainline/debian/ stretch nginx" >> /etc/apt/sources.list.d/nginx.list \
+			echo "deb-src https://nginx.org/packages/mainline/debian/ buster nginx" >> /etc/apt/sources.list.d/nginx.list \
 			\
 # new directory for storing sources and .deb files
 			&& tempDir="$(mktemp -d)" \
@@ -134,6 +134,10 @@ ENV NGINX_MAX_UPLOAD 0
 # will create a worker for each CPU core
 ENV NGINX_WORKER_PROCESSES 1
 
+# EDITS: added mgmt of this option in entrypoint.sh
+# Enable Gzip compression on common mime types
+ENV NGINV_ENABLE_GZIP 1
+
 # By default, Nginx listens on port 80.
 # To modify this, change LISTEN_PORT environment variable.
 # (in a Dockerfile or with an option for `docker run`)
@@ -153,6 +157,5 @@ ENTRYPOINT ["/entrypoint.sh"]
 COPY ./app /app
 WORKDIR /app
 
-# Run the start script, it will check for an /app/prestart.sh script (e.g. for migrations)
-# And then will start Supervisor, which in turn will start Nginx and uWSGI
-CMD ["/start.sh"]
+# EDITS: moved start.sh content to end of entrypoint.sh so out CMD is only supervisord
+CMD ["/usr/bin/supervisord"]

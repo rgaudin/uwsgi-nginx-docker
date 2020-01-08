@@ -14,6 +14,9 @@ NGINX_WORKER_CONNECTIONS=${NGINX_WORKER_CONNECTIONS:-1024}
 # Get the listen port for Nginx, default to 80
 USE_LISTEN_PORT=${LISTEN_PORT:-80}
 
+# Enable gzip compression, default is not to (0)
+NGINV_ENABLE_GZIP=${NGINV_ENABLE_GZIP:0}
+
 if [ -f /app/nginx.conf ]; then
     cp /app/nginx.conf /etc/nginx/nginx.conf
 else
@@ -46,6 +49,13 @@ else
 
     content_server='server {\n'
     content_server=$content_server"    listen ${USE_LISTEN_PORT};\n"
+
+    if [ -n "${NGINV_ENABLE_GZIP}" ] ; then
+        content_server=$content_server"    gzip on;\n"
+        content_server=$content_server"    gzip_proxied any;\n"
+        content_server=$content_server"    gzip_types text/plain text/css application/json application/x-javascript application/javascript text/xml application/xml application/rss+xml text/javascript image/svg+xml application/vnd.ms-fontobject application/x-font-ttf font/opentype application/atom+xml text/yaml;\n"
+    fi
+
     content_server=$content_server'    location / {\n'
     content_server=$content_server'        include uwsgi_params;\n'
     content_server=$content_server'        uwsgi_pass unix:///tmp/uwsgi.sock;\n'
@@ -56,6 +66,16 @@ else
 
     # Generate Nginx config for maximum upload file size
     printf "client_max_body_size $USE_NGINX_MAX_UPLOAD;\n" > /etc/nginx/conf.d/upload.conf
+fi
+
+# If there's a prestart.sh script in the /app directory, run it before starting
+PRE_START_PATH=/app/prestart.sh
+echo "Checking for script in $PRE_START_PATH"
+if [ -f $PRE_START_PATH ] ; then
+    echo "Running script $PRE_START_PATH"
+    . $PRE_START_PATH
+else
+    echo "There is no script $PRE_START_PATH"
 fi
 
 exec "$@"
